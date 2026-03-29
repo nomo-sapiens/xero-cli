@@ -5,8 +5,8 @@ import threading
 import time
 import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from urllib.parse import parse_qs, urlencode, urlparse
 from typing import Any
+from urllib.parse import parse_qs, urlencode, urlparse
 
 import httpx
 import typer
@@ -22,7 +22,7 @@ XERO_TOKEN_URL = "https://identity.xero.com/connect/token"
 XERO_CONNECTIONS_URL = "https://api.xero.com/connections"
 
 
-def login(settings: Settings) -> dict[str, Any]:
+def login(settings: Settings, tenant: str | None = None) -> dict[str, Any]:
     """Run the OAuth2 authorization flow and return saved token data."""
     if not settings.client_id or not settings.client_secret:
         console.print(
@@ -92,9 +92,9 @@ def login(settings: Settings) -> dict[str, Any]:
         raise typer.Exit(1)
 
     token_data = _exchange_code(auth_code[0], settings)
-    tenant = _select_tenant(token_data["access_token"])
-    token_data["tenant_id"] = tenant["tenantId"]
-    token_data["tenant_name"] = tenant["tenantName"]
+    selected = _select_tenant(token_data["access_token"], tenant=tenant)
+    token_data["tenant_id"] = selected["tenantId"]
+    token_data["tenant_name"] = selected["tenantName"]
 
     TokenStore().save(token_data)
     return token_data
@@ -136,7 +136,7 @@ def _exchange_code(code: str, settings: Settings) -> dict[str, Any]:
     return data
 
 
-def _select_tenant(access_token: str) -> dict[str, Any]:
+def _select_tenant(access_token: str, tenant: str | None = None) -> dict[str, Any]:
     response = httpx.get(
         XERO_CONNECTIONS_URL,
         headers={"Authorization": f"Bearer {access_token}", "Accept": "application/json"},
@@ -147,6 +147,22 @@ def _select_tenant(access_token: str) -> dict[str, Any]:
     if not connections:
         console.print("[red]No Xero organizations found for this account.[/red]")
         raise typer.Exit(1)
+
+    if tenant is not None:
+        lower = tenant.lower()
+        match = next(
+            (
+                c
+                for c in connections
+                if lower in c["tenantName"].lower() or lower == c["tenantId"].lower()
+            ),
+            None,
+        )
+        if match is None:
+            names = ", ".join(c["tenantName"] for c in connections)
+            console.print(f"[red]No tenant matching '{tenant}' found.[/red] Available: {names}")
+            raise typer.Exit(1)
+        return match
 
     if len(connections) == 1:
         return connections[0]

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import time
 from unittest.mock import MagicMock
 
@@ -109,9 +108,39 @@ def sample_transactions() -> list[dict]:
 @pytest.fixture
 def sample_accounts() -> list[dict]:
     return [
-        {"AccountID": "acc-001", "Code": "200", "Name": "Sales", "Type": "REVENUE", "Status": "ACTIVE"},
-        {"AccountID": "acc-002", "Code": "400", "Name": "Advertising", "Type": "EXPENSE", "Status": "ACTIVE"},
-        {"AccountID": "acc-003", "Code": "420", "Name": "Office Supplies", "Type": "EXPENSE", "Status": "ACTIVE"},
-        {"AccountID": "acc-004", "Code": "460", "Name": "Software / IT", "Type": "EXPENSE", "Status": "ACTIVE"},
-        {"AccountID": "acc-005", "Code": "310", "Name": "Meals & Entertainment", "Type": "EXPENSE", "Status": "ACTIVE"},
+        {
+            "AccountID": "acc-001",
+            "Code": "200",
+            "Name": "Sales",
+            "Type": "REVENUE",
+            "Status": "ACTIVE",
+        },
+        {
+            "AccountID": "acc-002",
+            "Code": "400",
+            "Name": "Advertising",
+            "Type": "EXPENSE",
+            "Status": "ACTIVE",
+        },
+        {
+            "AccountID": "acc-003",
+            "Code": "420",
+            "Name": "Office Supplies",
+            "Type": "EXPENSE",
+            "Status": "ACTIVE",
+        },
+        {
+            "AccountID": "acc-004",
+            "Code": "460",
+            "Name": "Software / IT",
+            "Type": "EXPENSE",
+            "Status": "ACTIVE",
+        },
+        {
+            "AccountID": "acc-005",
+            "Code": "310",
+            "Name": "Meals & Entertainment",
+            "Type": "EXPENSE",
+            "Status": "ACTIVE",
+        },
     ]

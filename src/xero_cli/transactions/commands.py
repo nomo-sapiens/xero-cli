@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from typing import Optional
-
 import typer
 from rich.console import Console
 from rich.table import Table
 
-from ..auth.client import get_client, get_token
+from ..auth.client import get_client
 from ..config.settings import get_settings
+from .classifier import classify_transactions
 
 app = typer.Typer(help="Manage bank transactions.")
 console = Console()
@@ -18,7 +17,7 @@ CONFIDENCE_COLORS = {"high": "green", "medium": "yellow", "low": "red"}
 @app.command("list")
 def list_transactions(
     days: int = typer.Option(30, "--days", "-d", help="Show transactions from the last N days"),
-    account: Optional[str] = typer.Option(
+    account: str | None = typer.Option(
         None, "--account", "-a", help="Filter by bank account name (partial match)"
     ),
     unclassified: bool = typer.Option(
@@ -32,7 +31,7 @@ def list_transactions(
     client = get_client()
     since = (date.today() - timedelta(days=days)).strftime("%Y-%m-%d")
     params = {
-        "where": f'Date >= DateTime({since.replace("-", ",")})',
+        "where": f"Date >= DateTime({since.replace('-', ',')})",
         "page": 1,
     }
 
@@ -55,9 +54,7 @@ def list_transactions(
         transactions = [
             tx
             for tx in transactions
-            if not any(
-                li.get("AccountCode") for li in tx.get("LineItems", [])
-            )
+            if not any(li.get("AccountCode") for li in tx.get("LineItems", []))
         ]
 
     transactions = transactions[:limit]
@@ -108,8 +105,6 @@ def classify(
     """AI-powered bank transaction classification using Claude."""
     from datetime import date, timedelta
 
-    from .classifier import classify_transactions
-
     settings = get_settings()
     if not settings.anthropic_api_key:
         console.print(
@@ -119,7 +114,6 @@ def classify(
         raise typer.Exit(1)
 
     client = get_client()
-    token = get_token()
 
     # Fetch unclassified transactions
     since = (date.today() - timedelta(days=days)).strftime("%Y-%m-%d")
@@ -128,7 +122,7 @@ def classify(
     tx_response = client.get(
         "/BankTransactions",
         params={
-            "where": f'Date >= DateTime({since.replace("-", ",")})',
+            "where": f"Date >= DateTime({since.replace('-', ',')})",
             "page": 1,
         },
     )

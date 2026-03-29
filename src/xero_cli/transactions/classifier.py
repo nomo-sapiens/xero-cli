@@ -3,12 +3,13 @@ from __future__ import annotations
 import json
 from typing import Any
 
+import anthropic
 from rich.console import Console
 
 console = Console()
 
-SYSTEM_PROMPT = """You are an accounting assistant for Xero. Your job is to classify bank transactions \
-into the most appropriate account codes from the chart of accounts.
+SYSTEM_PROMPT = """You are an accounting assistant for Xero. Your job is to classify bank \
+transactions into the most appropriate account codes from the chart of accounts.
 
 Rules:
 - Only use account codes that exist in the provided chart of accounts.
@@ -34,8 +35,6 @@ def classify_transactions(
 
     Returns a list of classification results matching the input transaction order.
     """
-    import anthropic
-
     client = anthropic.Anthropic(api_key=anthropic_api_key)
 
     # Build a compact chart of accounts for the prompt

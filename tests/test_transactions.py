@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from unittest.mock import MagicMock
 
 import pytest
@@ -70,7 +69,6 @@ class TestTransactionsClassify:
             return_value=MagicMock(anthropic_api_key=""),
         )
         mocker.patch("xero_cli.transactions.commands.get_client")
-        mocker.patch("xero_cli.transactions.commands.get_token")
 
         result = runner.invoke(app, ["transactions", "classify"])
         assert result.exit_code != 0
@@ -89,7 +87,6 @@ class TestTransactionsClassify:
 
         client.get.side_effect = [tx_response, acct_response]
         mocker.patch("xero_cli.transactions.commands.get_client", return_value=client)
-        mocker.patch("xero_cli.transactions.commands.get_token", return_value={"tenant_id": "t1"})
         mocker.patch(
             "xero_cli.transactions.commands.get_settings",
             return_value=MagicMock(anthropic_api_key="test-key"),
@@ -142,7 +139,6 @@ class TestTransactionsClassify:
         client.get.return_value = tx_response
 
         mocker.patch("xero_cli.transactions.commands.get_client", return_value=client)
-        mocker.patch("xero_cli.transactions.commands.get_token", return_value={"tenant_id": "t1"})
         mocker.patch(
             "xero_cli.transactions.commands.get_settings",
             return_value=MagicMock(anthropic_api_key="test-key"),

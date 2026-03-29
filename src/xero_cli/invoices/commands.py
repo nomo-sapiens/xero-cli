@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 import typer
 from rich.console import Console
 from rich.table import Table
@@ -23,10 +21,10 @@ STATUS_COLORS = {
 
 @app.command("list")
 def list_invoices(
-    status: Optional[str] = typer.Option(
+    status: str | None = typer.Option(
         None, "--status", "-s", help="Filter by status: DRAFT, AUTHORISED, PAID, VOIDED"
     ),
-    contact: Optional[str] = typer.Option(
+    contact: str | None = typer.Option(
         None, "--contact", "-c", help="Filter by contact name (partial match)"
     ),
     days: int = typer.Option(90, "--days", "-d", help="Show invoices from the last N days"),
@@ -42,7 +40,7 @@ def list_invoices(
         params["Statuses"] = status.upper()
 
     since = (date.today() - timedelta(days=days)).strftime("%Y-%m-%d")
-    params["where"] = f'Date >= DateTime({since.replace("-", ",")})'
+    params["where"] = f"Date >= DateTime({since.replace('-', ',')})"
 
     response = client.get("/Invoices", params=params)
     if response.status_code != 200:
@@ -123,7 +121,7 @@ def get_invoice(invoice_id: str = typer.Argument(..., help="Invoice ID or invoic
     table.add_row("Total", f"[bold]{inv.get('CurrencyCode', '')} {inv.get('Total', 0):,.2f}[/bold]")
     table.add_row("Amount Due", f"{inv.get('CurrencyCode', '')} {inv.get('AmountDue', 0):,.2f}")
 
-    console.print(f"\n[bold]Invoice Details[/bold]")
+    console.print("\n[bold]Invoice Details[/bold]")
     console.print(table)
 
     line_items = inv.get("LineItems", [])

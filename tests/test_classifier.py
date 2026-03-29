@@ -3,9 +3,7 @@ from __future__ import annotations
 import json
 from unittest.mock import MagicMock, patch
 
-import pytest
-
-from xero_cli.transactions.classifier import classify_transactions, _get_description
+from xero_cli.transactions.classifier import _get_description, classify_transactions
 
 
 class TestGetDescription:
@@ -32,22 +30,24 @@ class TestClassifyTransactions:
         mock_response = MagicMock()
         mock_response.content = [
             MagicMock(
-                text=json.dumps([
-                    {
-                        "transaction_id": "tx-001",
-                        "account_code": "420",
-                        "account_name": "Office Supplies",
-                        "confidence": "high",
-                        "reasoning": "Supermarket purchase likely office supplies",
-                    },
-                    {
-                        "transaction_id": "tx-002",
-                        "account_code": "460",
-                        "account_name": "Software / IT",
-                        "confidence": "high",
-                        "reasoning": "Adobe is a software company",
-                    },
-                ])
+                text=json.dumps(
+                    [
+                        {
+                            "transaction_id": "tx-001",
+                            "account_code": "420",
+                            "account_name": "Office Supplies",
+                            "confidence": "high",
+                            "reasoning": "Supermarket purchase likely office supplies",
+                        },
+                        {
+                            "transaction_id": "tx-002",
+                            "account_code": "460",
+                            "account_name": "Software / IT",
+                            "confidence": "high",
+                            "reasoning": "Adobe is a software company",
+                        },
+                    ]
+                )
             )
         ]
 
@@ -85,9 +85,7 @@ class TestClassifyTransactions:
             },
         ]
         mock_response = MagicMock()
-        mock_response.content = [
-            MagicMock(text=f"```json\n{json.dumps(classification)}\n```")
-        ]
+        mock_response.content = [MagicMock(text=f"```json\n{json.dumps(classification)}\n```")]
 
         mock_client = MagicMock()
         mock_client.messages.create.return_value = mock_response
@@ -136,22 +134,24 @@ class TestClassifyTransactions:
             for i in range(45)
         ]
 
-        single_result = [
-            {
-                "transaction_id": tx["BankTransactionID"],
-                "account_code": "420",
-                "account_name": "Office Supplies",
-                "confidence": "high",
-                "reasoning": "test",
-            }
-            for tx in transactions[:20]
-        ]
-
-        mock_response = MagicMock()
-        mock_response.content = [MagicMock(text=json.dumps(single_result))]
+        def make_result(batch):
+            return [
+                {
+                    "transaction_id": tx["BankTransactionID"],
+                    "account_code": "420",
+                    "account_name": "Office Supplies",
+                    "confidence": "high",
+                    "reasoning": "test",
+                }
+                for tx in batch
+            ]
 
         mock_client = MagicMock()
-        mock_client.messages.create.return_value = mock_response
+        responses = [
+            MagicMock(content=[MagicMock(text=json.dumps(make_result(transactions[i : i + 20])))])
+            for i in range(0, 45, 20)
+        ]
+        mock_client.messages.create.side_effect = responses
 
         with patch("xero_cli.transactions.classifier.anthropic") as mock_anthropic:
             mock_anthropic.Anthropic.return_value = mock_client

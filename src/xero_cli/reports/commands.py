@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -16,17 +15,17 @@ console = Console()
 @app.command("profit-loss")
 def profit_loss(
     months: int = typer.Option(12, "--months", "-m", help="Number of months to report on"),
-    from_date: Optional[str] = typer.Option(
+    from_date: str | None = typer.Option(
         None, "--from", help="Start date (YYYY-MM-DD). Overrides --months."
     ),
-    to_date: Optional[str] = typer.Option(
+    to_date: str | None = typer.Option(
         None, "--to", help="End date (YYYY-MM-DD). Defaults to today."
     ),
 ) -> None:
     """Show Profit & Loss report."""
     today = date.today()
     end = today.strftime("%Y-%m-%d") if not to_date else to_date
-    start = (today - timedelta(days=months * 30)).strftime("%Y-%m-%d") if not from_date else from_date
+    start = from_date or (today - timedelta(days=months * 30)).strftime("%Y-%m-%d")
 
     client = get_client()
     response = client.get(
@@ -52,7 +51,7 @@ def profit_loss(
 
 @app.command("balance-sheet")
 def balance_sheet(
-    as_of: Optional[str] = typer.Option(
+    as_of: str | None = typer.Option(
         None, "--date", help="Balance sheet date (YYYY-MM-DD). Defaults to today."
     ),
 ) -> None:
@@ -83,7 +82,7 @@ def balance_sheet(
 
 @app.command("aged-receivables")
 def aged_receivables(
-    as_of: Optional[str] = typer.Option(
+    as_of: str | None = typer.Option(
         None, "--date", help="Report date (YYYY-MM-DD). Defaults to today."
     ),
 ) -> None:
@@ -143,7 +142,10 @@ def _render_report_rows(rows: list[dict], indent: int = 0) -> None:
             is_summary = row_type == "SummaryRow"
             style = "bold" if is_summary else ""
             # Print as indented line
-            label_fmt = f"[{style}]{' ' * indent}{label}[/{style}]" if style else f"{' ' * indent}{label}"
+            if style:
+                label_fmt = f"[{style}]{' ' * indent}{label}[/{style}]"
+            else:
+                label_fmt = f"{' ' * indent}{label}"
             nums_fmt = "  ".join(
                 f"[{style}]{n:>14}[/{style}]" if style else f"{n:>14}" for n in nums
             )

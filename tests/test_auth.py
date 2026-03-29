@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import time
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -40,7 +39,9 @@ class TestTokenStore:
 
         with patch("xero_cli.auth.token_store.keyring") as mock_keyring:
             mock_keyring.errors = keyring.errors
-            mock_keyring.delete_password.side_effect = keyring.errors.PasswordDeleteError("not found")
+            mock_keyring.delete_password.side_effect = keyring.errors.PasswordDeleteError(
+                "not found"
+            )
             store = TokenStore()
             store.clear()  # should not raise
 
@@ -54,11 +55,13 @@ class TestGetToken:
         assert result["access_token"] == "test-access-token"
 
     def test_raises_exit_when_no_token(self, mocker):
-        mocker.patch("xero_cli.auth.client.TokenStore").return_value.load.return_value = None
-        from xero_cli.auth.client import get_token
         import typer
 
-        with pytest.raises(SystemExit):
+        mocker.patch("xero_cli.auth.client.TokenStore").return_value.load.return_value = None
+
+        from xero_cli.auth.client import get_token
+
+        with pytest.raises(typer.Exit):
             get_token()
 
     def test_refreshes_expired_token(self, expired_token, valid_token, mocker):

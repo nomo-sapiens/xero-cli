@@ -64,6 +64,9 @@ anthropic_api_key = "your_key"
 
 ```bash
 xero auth login
+
+# If you have multiple Xero organizations, auto-select one to skip the prompt:
+xero auth login --tenant "Acme Ltd"
 ```
 
 This opens a browser window. After authorizing, credentials are stored securely in your OS keychain (macOS Keychain / Linux Secret Service / Windows Credential Store).
@@ -79,9 +82,10 @@ xero auth status
 ### Authentication
 
 ```bash
-xero auth login       # Authenticate with Xero
-xero auth status      # Show current auth status and token expiry
-xero auth logout      # Remove stored credentials
+xero auth login                    # Authenticate with Xero
+xero auth login --tenant "Acme"   # Auto-select org by name (non-interactive)
+xero auth status                   # Show current auth status and token expiry
+xero auth logout                   # Remove stored credentials
 ```
 
 ### Invoices
