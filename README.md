@@ -1,19 +1,19 @@
 # xero-cli
 
-An AI-powered command-line tool for managing your Xero accounting. Classify bank transactions with Claude, view invoices, check reports — all from the terminal.
+A command-line tool for managing your Xero accounting. View invoices, classify transactions, check reports — all from the terminal. Designed to be used with an AI agent (Claude Code + the included skill) for automated transaction classification.
 
 ## Features
 
-- **AI transaction classification** — uses Claude to suggest account codes for unclassified bank transactions, with interactive confirmation or batch mode
+- **Accounts** — browse your chart of accounts
 - **Invoices** — list, filter, and inspect invoices
-- **Bank transactions** — browse and filter transactions by account or date range
+- **Bank transactions** — browse, filter, and set account codes on transactions
 - **Reports** — Profit & Loss, Balance Sheet, and Aged Receivables
+- **Agent-ready** — includes a Claude Code skill for AI-driven transaction classification (see `xero-cli-skill/`)
 
 ## Requirements
 
 - Python 3.11+
 - A [Xero developer account](https://developer.xero.com) with an OAuth2 app
-- An [Anthropic API key](https://console.anthropic.com) (for AI classification)
 
 ## Installation
 
@@ -35,8 +35,11 @@ pip install -e ".[dev]"
 
 1. Go to [developer.xero.com/app/manage](https://developer.xero.com/app/manage)
 2. Click **New app**
-3. Set the **Redirect URI** to `http://localhost:8080/callback`
-4. Note your **Client ID** and **Client Secret**
+3. Select **Web app** as the app type (required — other types don't support the authorization code flow)
+4. Set the **Redirect URI** to `http://localhost:8080/callback`
+5. Note your **Client ID** and **Client Secret**
+
+> **Note:** If you see `unauthorized_client: Invalid scope` during login, check that your app type is **Web app**. Xero migrated to granular scopes in March 2026 — apps created after that date require the new scope names, which this CLI uses automatically.
 
 ### 2. Configure credentials
 
@@ -49,7 +52,6 @@ cp .env.example .env
 ```env
 XERO_CLIENT_ID=your_client_id_here
 XERO_CLIENT_SECRET=your_client_secret_here
-ANTHROPIC_API_KEY=your_anthropic_api_key_here
 ```
 
 Alternatively, export the variables in your shell or store them in `~/.config/xero-cli/config.toml`:
@@ -57,7 +59,6 @@ Alternatively, export the variables in your shell or store them in `~/.config/xe
 ```toml
 client_id = "your_client_id"
 client_secret = "your_client_secret"
-anthropic_api_key = "your_key"
 ```
 
 ### 3. Authenticate
@@ -108,6 +109,25 @@ xero invoices list --days 7
 xero invoices get INV-0042
 ```
 
+### Chart of Accounts
+
+```bash
+# List all accounts
+xero accounts list
+
+# Filter by type
+xero accounts list --type EXPENSE
+xero accounts list --type REVENUE
+
+# Show only active accounts
+xero accounts list --status ACTIVE
+
+# Add a new account
+xero accounts add --name "Office Expenses" --type EXPENSE --code 420
+xero accounts add --name "Software & Subscriptions" --type EXPENSE --code 460
+xero accounts add --name "Investments" --type ASSET --code 710
+```
+
 ### Bank Transactions
 
 ```bash
@@ -120,50 +140,33 @@ xero transactions list --days 90
 # Filter by bank account
 xero transactions list --account "Business Cheque"
 
-# Show only unclassified transactions
+# Show only unclassified transactions (includes Transaction IDs for set-account)
 xero transactions list --unclassified
+
+# Set an account code on a transaction
+xero transactions set-account <transaction_id> <account_code>
 ```
 
-### AI Transaction Classification
+### AI Transaction Classification (via Claude Code)
 
-Classify unclassified bank transactions using Claude:
+Transaction classification is handled by the Claude Code agent using the skill in `xero-cli-skill/`. The agent:
 
-```bash
-# Interactive mode — review and confirm each suggestion
-xero transactions classify
+1. Fetches unclassified transactions with `xero transactions list --unclassified`
+2. Loads the chart of accounts with `xero accounts list`
+3. Reasons about each transaction and assigns a confidence level (high / medium / low)
+4. Presents a proposed classification table and **waits for your confirmation**
+5. Applies approved classifications with `xero transactions set-account`
 
-# Dry run — see suggestions without applying them
-xero transactions classify --dry-run
-
-# Batch mode — auto-apply all high-confidence suggestions
-xero transactions classify --batch
-
-# Classify transactions from the last 90 days
-xero transactions classify --days 90
-
-# Use a specific Claude model
-xero transactions classify --model claude-opus-4-6
-```
-
-**How it works:**
-
-1. Fetches all unclassified transactions (those without an account code) from Xero
-2. Loads your chart of accounts
-3. Sends transactions to Claude in batches of 20
-4. Claude suggests an account code, confidence level, and brief reasoning for each transaction
-5. In interactive mode, you confirm each suggestion; in `--batch` mode, high-confidence suggestions are applied automatically
-
-Example output:
+Example proposed classification output:
 
 ```
-Classification Results
-──────────────────────────────────────────────────────────────────
- #   Date        Description              Amount     Suggested Account         Conf   Reasoning
- 1   2024-03-15  WOOLWORTHS SYDNEY       -87.43     420 - Office Supplies     high   Supermarket purchase
- 2   2024-03-14  ADOBE INC              -54.99     460 - Software / IT        high   Software subscription
- 3   2024-03-13  CASH WITHDRAWAL       -200.00     —                          low    Cannot determine
-──────────────────────────────────────────────────────────────────
+ #   Transaction ID                        Date        Description        Amount    Suggested Account      Conf    Reasoning
+ 1   a1b2c3d4-...                          2024-03-15  WOOLWORTHS         -87.43    420 - Office Supplies  high    Supermarket
+ 2   e5f6g7h8-...                          2024-03-14  ADOBE INC          -54.99    460 - Software / IT    high    Subscription
+ 3   i9j0k1l2-...                          2024-03-13  CASH WITHDRAWAL   -200.00    —                      low     Insufficient context
 ```
+
+To use: open Claude Code and invoke the `xero` skill, then ask it to classify your transactions.
 
 ### Reports
 

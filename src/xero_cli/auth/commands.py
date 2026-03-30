@@ -15,7 +15,7 @@ app = typer.Typer(help="Manage Xero authentication.")
 console = Console()
 
 
-@app.command()
+@app.command("login")
 def login_cmd(
     ctx: typer.Context,
     tenant: str | None = typer.Option(
@@ -33,9 +33,6 @@ def login_cmd(
         f"Connected to [bold]{token_data['tenant_name']}[/bold]"
     )
 
-
-# Register as "login" in the CLI
-login_cmd.name = "login"  # type: ignore[attr-defined]
 
 
 @app.command()

@@ -27,7 +27,6 @@ After login, tokens are stored in the OS keychain and **auto-refresh** before ex
 ```bash
 XERO_CLIENT_ID=...       # From Xero developer portal
 XERO_CLIENT_SECRET=...   # From Xero developer portal
-ANTHROPIC_API_KEY=...    # For transaction classification only
 ```
 
 ### Verify auth before running workflows
@@ -60,32 +59,61 @@ xero invoices list --status AUTHORISED --days 180 --limit 100
 
 ---
 
-## Workflow 2: Automated Transaction Classification
+## Workflow 2: Agent-Driven Transaction Classification
 
-Classify unclassified bank transactions using Claude. Fully non-interactive with `--batch`.
+> **Important**: Always confirm with the user before applying any classifications to Xero. Present your proposed classifications and wait for explicit approval before running any `set-account` commands.
+
+Classification is performed by the agent (you) using CLI commands only. Use the steps below.
+
+### Step 1 — Fetch data
 
 ```bash
-# Step 1: See what's unclassified (read-only, no changes)
+# Get unclassified transactions (Transaction IDs are shown in output)
 xero transactions list --unclassified --days 30
 
-# Step 2: Preview AI classifications without applying them
-xero transactions classify --dry-run --days 30
+# Get the chart of accounts (to know valid account codes)
+xero accounts list
 
-# Step 3: Auto-apply all high-confidence classifications
-xero transactions classify --batch --days 30
-
-# Classify a longer window
-xero transactions classify --batch --days 90
-
-# Use a specific Claude model
-xero transactions classify --batch --model claude-opus-4-6 --days 30
+# If a suitable account doesn't exist, create it first — confirm with the user before doing so
+xero accounts add --name "Office Expenses" --type EXPENSE --code 420
+xero accounts add --name "Software & Subscriptions" --type EXPENSE --code 460
 ```
 
-**Confidence behaviour in `--batch` mode**:
-- `high` → applied automatically
-- `medium` / `low` → skipped (not applied)
+### Step 2 — Classify
 
-For complete automation including medium/low confidence items, use `--dry-run` first to review, then run `--batch` for the high-confidence subset.
+For each unclassified transaction, reason about the most appropriate account code based on:
+- The transaction description / reference
+- The transaction type (SPEND / RECEIVE)
+- The amount and counterparty
+- The chart of accounts
+
+Assign a **confidence level** to each classification:
+
+| Confidence | Colour | Meaning |
+|---|---|---|
+| `high` | green | Strong match — description clearly maps to one account |
+| `medium` | yellow | Probable match — some ambiguity |
+| `low` | red | Uncertain — insufficient context to classify reliably |
+
+### Step 3 — Present results and confirm
+
+Display a proposed classification table with columns: `#`, `Transaction ID`, `Date`, `Description`, `Amount`, `Suggested Account`, `Confidence`, `Reasoning`.
+
+**Always ask the user to confirm before applying anything.** For example:
+
+> "I've classified 8 transactions above. Shall I apply the 5 high-confidence ones now? The 3 medium-confidence ones are listed — confirm each or skip."
+
+Do not proceed to Step 4 until the user has approved.
+
+### Step 4 — Apply approved classifications
+
+Use `xero transactions set-account` for each approved transaction:
+
+```bash
+xero transactions set-account <transaction_id> <account_code>
+```
+
+After applying, report a summary: `N applied, N skipped, N error(s)`.
 
 ---
 
@@ -146,13 +174,15 @@ xero auth status
 # 2. Check what transactions need classification
 xero transactions list --unclassified --days 30
 
-# 3. Preview AI classifications (dry run)
-xero transactions classify --dry-run --days 30
+# 3. Fetch chart of accounts
+xero accounts list
 
-# 4. Apply high-confidence classifications
-xero transactions classify --batch --days 30
+# 4. Classify (agent-driven — see Workflow 2)
+#    Reason about each transaction, present confidence-coloured table,
+#    confirm with user, then apply approved classifications:
+xero transactions set-account <transaction_id> <account_code>
 
-# 5. Review remaining unclassified (medium/low confidence were skipped)
+# 5. Review remaining unclassified
 xero transactions list --unclassified --days 30
 
 # 6. Pull updated P&L to confirm numbers
@@ -170,8 +200,11 @@ xero reports aged-receivables
 ## Workflow 6: Month-End Close
 
 ```bash
-# Classify all transactions for the month
-xero transactions classify --batch --days 31
+# Classify all transactions for the month (agent-driven — see Workflow 2)
+xero transactions list --unclassified --days 31
+xero accounts list
+# Reason about each transaction, present table, confirm with user, then:
+xero transactions set-account <transaction_id> <account_code>
 
 # Review invoices sent this month
 xero invoices list --status AUTHORISED --days 31
@@ -190,5 +223,4 @@ All commands exit `0` on success and `1` on failure. Errors are printed to stdou
 
 Common failure causes:
 - Not authenticated → run `xero auth login`
-- `ANTHROPIC_API_KEY` not set → required for `xero transactions classify`
 - API errors → check Xero connectivity and token validity via `xero auth status`

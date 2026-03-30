@@ -22,7 +22,6 @@ Entry point: `xero`
 |---|---|---|
 | `XERO_CLIENT_ID` | Yes (for login) | OAuth2 client ID from Xero developer portal |
 | `XERO_CLIENT_SECRET` | Yes (for login) | OAuth2 client secret from Xero developer portal |
-| `ANTHROPIC_API_KEY` | Yes (for classify) | Anthropic API key for Claude-powered classification |
 
 Can be set via:
 - Environment variables
@@ -149,6 +148,64 @@ xero invoices get <INVOICE_ID>
 
 ---
 
+## `xero accounts` — Chart of Accounts
+
+### `xero accounts list`
+
+List the chart of accounts.
+
+**Interactive**: No
+
+```
+xero accounts list [OPTIONS]
+```
+
+| Option | Short | Type | Default | Description |
+|---|---|---|---|---|
+| `--type` | `-t` | TEXT | None | Filter by account type (e.g. `EXPENSE`, `REVENUE`, `ASSET`, `LIABILITY`) |
+| `--status` | `-s` | TEXT | None | Filter by status: `ACTIVE`, `ARCHIVED` |
+
+**Output**: Table — Code, Name, Type, Tax Type, Status. Sorted by account code.
+
+**Exit codes**: `0` on success, `1` on API error.
+
+---
+
+### `xero accounts add`
+
+Add a new account to the chart of accounts.
+
+**Interactive**: No
+
+```
+xero accounts add --name <NAME> --type <TYPE> [OPTIONS]
+```
+
+| Option | Short | Type | Required | Description |
+|---|---|---|---|---|
+| `--name` | `-n` | TEXT | Yes | Account name (e.g. `Office Expenses`) |
+| `--type` | `-t` | TEXT | Yes | Account type: `EXPENSE`, `REVENUE`, `ASSET`, `LIABILITY`, `EQUITY`, `BANK` |
+| `--code` | `-c` | TEXT | No | Account code (e.g. `420`) |
+| `--tax-type` | | TEXT | No | Tax type (e.g. `INPUT`, `OUTPUT`, `NONE`) |
+| `--description` | `-d` | TEXT | No | Account description |
+
+**Common account types**:
+
+| Type | Use for |
+|---|---|
+| `EXPENSE` | Money spent running the business (office supplies, software, travel) |
+| `REVENUE` | Income from business activities |
+| `ASSET` | Things the business owns (equipment, investments) |
+| `LIABILITY` | Money owed by the business |
+| `EQUITY` | Owner's stake in the business |
+| `BANK` | Bank or credit card accounts |
+
+**Output**: `Created: <code>  <name>  (<type>)`
+
+**Exit codes**: `0` on success, `1` on API error.
+
+---
+
 ## `xero transactions` — Bank Transactions
 
 ### `xero transactions list`
@@ -174,35 +231,48 @@ xero transactions list [OPTIONS]
 
 ---
 
-### `xero transactions classify`
+### Agent-driven transaction classification
 
-AI-powered classification of unclassified bank transactions using Claude.
+Classification is performed by the agent using the following CLI commands:
 
-Fetches all `AUTHORISED` bank transactions with no account code on their line items, sends them to Claude in batches of 20, and optionally applies the suggested account codes back to Xero.
-
-**Interactive**: Yes in default mode (prompts to confirm medium/low-confidence items). Use `--batch` or `--dry-run` for non-interactive operation.
-
-```
-xero transactions classify [OPTIONS]
+```bash
+xero transactions list --unclassified --days N   # get transactions to classify
+xero accounts list                                # get valid account codes
+xero transactions set-account <id> <code>        # apply a single classification
 ```
 
-| Option | Short | Type | Default | Description |
-|---|---|---|---|---|
-| `--days` | `-d` | INT | `30` | Classify transactions from last N days |
-| `--dry-run` | | FLAG | `False` | Show suggestions without applying to Xero. **Non-interactive.** |
-| `--batch` | | FLAG | `False` | Auto-apply all high-confidence classifications without confirmation. **Non-interactive.** |
-| `--model` | `-m` | TEXT | `claude-sonnet-4-6` | Claude model to use for classification |
+The agent reasons about each transaction, presents a proposed classification table, **confirms with the user**, then applies approved items one by one using `set-account`.
 
 **Confidence levels**:
-- `high` (green) — applied automatically in `--batch` mode
-- `medium` (yellow) — requires confirmation in default mode
-- `low` (red) — requires confirmation in default mode
 
-**Output**: Classification results table — #, Date, Description, Amount, Suggested Account, Confidence, Reasoning. Followed by a summary: `N classified, N error(s)`.
+| Level | Colour | Behaviour |
+|---|---|---|
+| `high` | green | Agent recommends applying — still requires user confirmation |
+| `medium` | yellow | Agent flags as uncertain — confirm before applying |
+| `low` | red | Agent skips unless user explicitly requests |
 
-**Exit codes**: `0` on success, `1` if `ANTHROPIC_API_KEY` not set or API error.
+**Summary output**: `N applied, N skipped, N error(s)`.
 
-**Requirements**: `ANTHROPIC_API_KEY` must be set.
+---
+
+### `xero transactions set-account`
+
+Set the account code on a single bank transaction.
+
+**Interactive**: No
+
+```
+xero transactions set-account <TRANSACTION_ID> <ACCOUNT_CODE>
+```
+
+| Argument | Required | Description |
+|---|---|---|
+| `TRANSACTION_ID` | Yes | BankTransactionID (UUID) — shown in `xero transactions list` output |
+| `ACCOUNT_CODE` | Yes | Account code to assign (e.g. `420`) — see `xero accounts list` |
+
+**Output**: `Updated: <description> → account code <code>`
+
+**Exit codes**: `0` on success, `1` if transaction not found or API error.
 
 ---
 
@@ -303,9 +373,11 @@ Token data stored per session:
 | `xero auth logout` | Yes | |
 | `xero invoices list` | Yes | |
 | `xero invoices get` | Yes | |
+| `xero accounts list` | Yes | |
+| `xero accounts add` | Yes | |
 | `xero transactions list` | Yes | |
-| `xero transactions classify --batch` | Yes | Auto-applies high-confidence only |
-| `xero transactions classify --dry-run` | Yes | Read-only, no writes |
+| `xero transactions set-account` | Yes | Applies a single classification |
+| Agent classification | Yes | Agent reasons, presents table, confirms with user, then applies via `set-account` |
 | `xero reports profit-loss` | Yes | |
 | `xero reports balance-sheet` | Yes | |
 | `xero reports aged-receivables` | Yes | |
