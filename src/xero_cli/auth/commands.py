@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import typer
 from rich.console import Console
@@ -15,21 +15,24 @@ app = typer.Typer(help="Manage Xero authentication.")
 console = Console()
 
 
-@app.command()
+@app.command("login")
 def login_cmd(
     ctx: typer.Context,
+    tenant: str | None = typer.Option(
+        None,
+        "--tenant",
+        "-t",
+        help="Tenant name (substring) or tenant ID to auto-select. Skips interactive prompt.",
+    ),
 ) -> None:
     """Authenticate with Xero via OAuth2."""
     settings = get_settings()
-    token_data = login(settings)
+    token_data = login(settings, tenant=tenant)
     console.print(
         f"\n[green]Successfully authenticated![/green] "
         f"Connected to [bold]{token_data['tenant_name']}[/bold]"
     )
 
-
-# Register as "login" in the CLI
-login_cmd.name = "login"  # type: ignore[attr-defined]
 
 
 @app.command()
@@ -43,7 +46,7 @@ def status() -> None:
         raise typer.Exit(1)
 
     expires_at = token_data.get("expires_at", 0)
-    expires_dt = datetime.fromtimestamp(expires_at, tz=timezone.utc)
+    expires_dt = datetime.fromtimestamp(expires_at, tz=UTC)
     is_valid = expires_at > time.time()
 
     table = Table(show_header=False, box=None, padding=(0, 2))

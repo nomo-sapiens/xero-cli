@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-import json
 from unittest.mock import MagicMock
 
 import pytest
 from typer.testing import CliRunner
 
 from xero_cli.main import app
-
 
 runner = CliRunner()
 

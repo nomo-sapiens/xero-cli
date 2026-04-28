@@ -32,3 +32,8 @@ Thumbs.db
 
 # Project secrets
 .env.local
+
+# Claude Code local settings
+.claude/settings.local.json
+
+uv.lock

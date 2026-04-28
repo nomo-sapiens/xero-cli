@@ -18,12 +18,13 @@ XERO_SCOPES = [
     "openid",
     "profile",
     "email",
-    "accounting.transactions",
-    "accounting.transactions.read",
-    "accounting.reports.read",
-    "accounting.settings",
-    "accounting.settings.read",
     "offline_access",
+    "accounting.settings",                   # /Accounts
+    "accounting.invoices",                   # /Invoices
+    "accounting.banktransactions",           # /BankTransactions
+    "accounting.reports.profitandloss.read", # /Reports/ProfitAndLoss
+    "accounting.reports.balancesheet.read",  # /Reports/BalanceSheet
+    "accounting.reports.aged.read",          # /Reports/AgedReceivablesByContact
 ]
 
 
@@ -31,7 +32,6 @@ XERO_SCOPES = [
 class Settings:
     client_id: str
     client_secret: str
-    anthropic_api_key: str = ""
     redirect_uri: str = "http://localhost:8080/callback"
     scopes: list[str] = field(default_factory=lambda: list(XERO_SCOPES))
 
@@ -40,7 +40,6 @@ def get_settings() -> Settings:
     """Load settings from environment variables, then config file as fallback."""
     client_id = os.environ.get("XERO_CLIENT_ID", "")
     client_secret = os.environ.get("XERO_CLIENT_SECRET", "")
-    anthropic_api_key = os.environ.get("ANTHROPIC_API_KEY", "")
 
     if CONFIG_FILE.exists():
         with open(CONFIG_FILE, "rb") as f:
@@ -49,13 +48,9 @@ def get_settings() -> Settings:
             client_id = config.get("client_id", "")
         if not client_secret:
             client_secret = config.get("client_secret", "")
-        if not anthropic_api_key:
-            anthropic_api_key = config.get("anthropic_api_key", "")
-
     return Settings(
         client_id=client_id,
         client_secret=client_secret,
-        anthropic_api_key=anthropic_api_key,
     )
 
 
